@@ -1,0 +1,153 @@
+
+<html>
+	<head>
+		<script src="NexusUI.js"></script>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<link href="app.css" rel="stylesheet" type="text/css">
+	</head>
+	<body style="margin:0; padding:0; color:#BBB">
+		<div style="background:#272727; height:100%">
+			<div style="padding:15px">
+				<div id="sequencer"></div><br>
+				steps interval
+				<div id="intervalSlider"></div>
+				columns count
+				<div id="colCountSlider"></div>
+			</div>
+
+			<div class="wrapper">
+
+	      <section class="main-controls">
+	        <canvas class="visualizer" height="60px"></canvas>
+	        <div id="buttons">
+	          <button class="record">Record</button>
+	          <button class="stop">Stop</button>
+	        </div>
+	      </section>
+
+	      <section class="sound-clips">
+
+
+	      </section>
+
+	    </div>
+		</div>
+
+
+		<script>
+			function loadSample(url, callback) {
+				var request = new XMLHttpRequest();
+				request.open("GET", url, true);
+				request.responseType = "arraybuffer";
+				request.onload = function() {
+					var audioData = request.response;
+					con.decodeAudioData(audioData, function(buffer) {
+						//console.log(buffer);
+						callback(buffer);
+					});
+				}
+				request.send();
+			}
+
+			function playSound(buffer, time) {
+				var player = con.createBufferSource();
+				player.buffer = buffer;
+				player.loop = false;
+				player.connect(con.destination);
+				player.start();
+			}
+
+			// Audio Engine
+			var audio_context = window.AudioContext || window.webkitAudioContext;
+			var con = new audio_context(); // create the audio system
+
+			var hat;
+			var snare;
+
+			// Timing
+			var interval = 0.4;
+			var wait_time = interval / 4;
+			var got_up_to;
+			var now = con.currentTime;
+
+			setInterval(function() {
+				now = con.currentTime;
+				var max_future_time = now + (wait_time * 1.5); // how far in the future we will schedule
+				if (got_up_to > now) { // already scheduled up to shis point
+					now = got_up_to;
+				}
+				while (now <= max_future_time) {
+					sequencer.next();
+					now += interval;
+				}
+				got_up_to = now;
+			}, wait_time * 1000);
+
+			// Loading samples
+			loadSample("https://raw.githubusercontent.com/michd/step-sequencer/master/content/audio/2002DANC/SHAKER.wav", function(buffer) {
+				shaker = buffer;
+			});
+			loadSample("https://raw.githubusercontent.com/michd/step-sequencer/master/content/audio/2002DANC/KIK_1.wav", function(buffer) {
+				kik = buffer;
+			});
+			loadSample("https://vchet.github.io/JS-synth/samples/hh.wav", function(buffer) {
+				hat = buffer;
+			});
+			loadSample("https://vchet.github.io/JS-synth/samples/sn.wav", function(buffer) {
+				snare = buffer;
+			});
+
+			// Nexus UI
+			function sequencerStep(data) {
+				if (data[3]) {
+					playSound(shaker, now);
+				}
+				if (data[2]) {
+					playSound(kik, now);
+				}
+				if (data[1]) {
+					playSound(hat, now);
+				}
+				if (data[0]) {
+					playSound(snare, now);
+				}
+			}
+
+			var sequencer = new Nexus.Sequencer("#sequencer", {
+				"size": [200,400],
+				"rows": 4,
+				"columns": 2
+			});
+			sequencer.on("step", sequencerStep);
+			sequencer.colorize("mediumLight","blue");
+
+			var intervalSlider = new Nexus.Slider("#intervalSlider", {
+				"size": [100,20],
+				"value": interval,
+				"min": 0.1,
+				"max": 1
+			});
+			intervalSlider.on("change", function(v) {
+				interval = v;
+			})
+
+			var colCountSlider = new Nexus.Slider("#colCountSlider", {
+				"size": [100,20],
+				"value": sequencer.columns,
+				"min": 2,
+				"max": 10,
+				"step": 1
+			});
+			colCountSlider.on("change", function(v) {
+				sequencer.columns = v;
+				sequencer.resize(sequencer.columns * 100,400);
+				sequencer.matrix.populate.all(0);
+			})
+
+		</script>
+
+		<script src="mediaDevices-getUserMedia-polyfill.js"></script>
+		  <script src="app.js"></script>
+	</body>
+</html>
